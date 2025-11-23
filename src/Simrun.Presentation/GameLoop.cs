@@ -1,9 +1,12 @@
 using System;
 using System.Diagnostics;
+using System.Numerics;
 using System.Threading;
+using Simrun.Engine.Interop;
 using Simrun.Engine.Rendering;
 using Simrun.Presentation.Cameras;
 using Simrun.Presentation.Input;
+using Simrun.Domain.Entities;
 
 namespace Simrun.Presentation;
 
@@ -30,6 +33,7 @@ internal sealed class GameLoop
         _renderer.Initialize(_surface);
 
         var run = _services.StartRun.Start();
+        BootstrapLevelGeometry(run);
         var sw = Stopwatch.StartNew();
         var last = sw.Elapsed;
         var printTimer = 0f;
@@ -79,5 +83,31 @@ internal sealed class GameLoop
         }
 
         _renderer.Shutdown();
+    }
+
+    private void BootstrapLevelGeometry(RunState run)
+    {
+        var level = _services.Levels.FindById(run.LevelId);
+        if (level is null)
+        {
+            return;
+        }
+
+        var floor = Mesh.CreateQuad();
+        var floorMat = new Material { Albedo = new Vector3(0.35f, 0.35f, 0.4f) };
+        var floorTransform = new Transform
+        {
+            Position = new Vector3(0f, level.FloorHeight, 0f),
+            Scale = new Vector3(200f, 1f, 200f)
+        };
+        _scene.Add(new Renderable(floor, floorMat, floorTransform));
+
+        var goal = Mesh.CreateCube(level.GoalRadius * 2f);
+        var goalMat = new Material { Albedo = new Vector3(1.0f, 0.9f, 0.2f) };
+        var goalTransform = new Transform
+        {
+            Position = level.GoalPosition.ToEngine()
+        };
+        _scene.Add(new Renderable(goal, goalMat, goalTransform));
     }
 }

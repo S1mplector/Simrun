@@ -11,6 +11,7 @@ public sealed class NaivePhysicsEngine : IPhysicsEngine
     private const float CapsuleRadius = 0.5f;
     private const float CapsuleHalfHeight = 0.9f;
     private const float GroundSnapTolerance = 0.05f;
+    private const float MaxStepDistance = 0.5f;
 
     public PlayerState Step(LevelDefinition level, PlayerState player, PlayerInput input, float deltaSeconds)
     {
@@ -43,20 +44,36 @@ public sealed class NaivePhysicsEngine : IPhysicsEngine
         }
 
         var nextPosition = player.Position.Add(velocity.Scale(deltaSeconds));
-        var grounded = nextPosition.Y <= level.FloorHeight + GroundSnapTolerance;
+        var totalDisplacement = velocity.Scale(deltaSeconds);
+        var totalDistance = totalDisplacement.Magnitude();
+        var steps = Math.Max(1, (int)MathF.Ceiling(totalDistance / MaxStepDistance));
+        var stepDt = deltaSeconds / steps;
 
-        if (grounded)
+        var position = player.Position;
+        var grounded = player.IsGrounded;
+        var distanceTravelled = player.DistanceTravelled;
+
+        for (var i = 0; i < steps; i++)
         {
-            nextPosition = nextPosition.WithY(level.FloorHeight);
-            velocity = new Vector3(velocity.X, 0f, velocity.Z);
+            var previous = position;
+            var segmentNext = position.Add(velocity.Scale(stepDt));
+            var groundedSegment = segmentNext.Y <= level.FloorHeight + GroundSnapTolerance;
+
+            if (groundedSegment)
+            {
+                segmentNext = segmentNext.WithY(level.FloorHeight);
+                velocity = new Vector3(velocity.X, 0f, velocity.Z);
+                grounded = true;
+            }
+
+            (segmentNext, velocity, grounded) = ResolveCollisions(level, segmentNext, velocity, grounded);
+
+            var horizontalDelta = new Vector3(segmentNext.X - previous.X, 0f, segmentNext.Z - previous.Z);
+            distanceTravelled += horizontalDelta.Magnitude();
+            position = segmentNext;
         }
 
-        (nextPosition, velocity, grounded) = ResolveCollisions(level, nextPosition, velocity, grounded);
-
-        var horizontalDelta = new Vector3(nextPosition.X - player.Position.X, 0f, nextPosition.Z - player.Position.Z);
-        var distanceTravelled = player.DistanceTravelled + horizontalDelta.Magnitude();
-
-        return new PlayerState(nextPosition, velocity, grounded, distanceTravelled);
+        return new PlayerState(position, velocity, grounded, distanceTravelled);
     }
 
     private static (Vector3 position, Vector3 velocity, bool grounded) ResolveCollisions(
