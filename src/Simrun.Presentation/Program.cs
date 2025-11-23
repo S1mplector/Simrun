@@ -1,7 +1,7 @@
 using Simrun.Presentation;
 using Simrun.Engine.Rendering;
 using Simrun.Presentation.Input;
-using Simrun.Presentation.Camera;
+using Simrun.Presentation.Cameras;
 
 var services = GameBootstrapper.Build();
 var renderSurface = new RenderSurface(1280, 720, "Simrun Prototype");

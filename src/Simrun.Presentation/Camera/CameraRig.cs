@@ -4,7 +4,7 @@ using Simrun.Engine.Interop;
 using Simrun.Engine.Rendering;
 using DomainVector = Simrun.Domain.ValueObjects.Vector3;
 
-namespace Simrun.Presentation.Camera;
+namespace Simrun.Presentation.Cameras;
 
 /// <summary>
 /// Simple chase-camera that orbits behind the player's velocity vector.

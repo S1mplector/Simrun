@@ -41,8 +41,7 @@ internal sealed class InputController
                     _right = true;
                     _left = false;
                     break;
-                case ConsoleKey.LeftShift:
-                case ConsoleKey.RightShift:
+                case ConsoleKey.F:
                     _sprint = !_sprint;
                     break;
                 case ConsoleKey.Spacebar:
