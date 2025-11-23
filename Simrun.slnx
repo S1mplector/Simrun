@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Simrun.Application/Simrun.Application.csproj" />
+    <Project Path="src/Simrun.Domain/Simrun.Domain.csproj" />
+    <Project Path="src/Simrun.Infrastructure/Simrun.Infrastructure.csproj" />
+    <Project Path="src/Simrun.Presentation/Simrun.Presentation.csproj" />
+  </Folder>
+</Solution>
