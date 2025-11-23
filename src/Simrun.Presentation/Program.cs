@@ -5,6 +5,6 @@ using Simrun.Presentation.Cameras;
 
 var services = GameBootstrapper.Build();
 var renderSurface = new RenderSurface(1280, 720, "Simrun Prototype");
-IRenderBackend renderer = new NullRenderBackend();
+IRenderBackend renderer = new Simrun.Engine.Rendering.OpenGl.OpenGlRenderBackend();
 var loop = new GameLoop(services, renderer, renderSurface);
 loop.Run();
