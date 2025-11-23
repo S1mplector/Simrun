@@ -1,0 +1,20 @@
+{
+  "id": "level-3",
+  "name": "Starlit Cavern",
+  "spawn": { "x": 0, "y": 16, "z": -20 },
+  "goal": { "position": { "x": 55, "y": 18, "z": 15 }, "radius": 2.5 },
+  "floorHeight": -2,
+  "movement": {
+    "maxSpeed": 14,
+    "acceleration": 35,
+    "gravity": 24,
+    "jumpStrength": 15,
+    "airControl": 0.5
+  },
+  "colliders": [
+    { "center": { "x": 0, "y": -3, "z": 0 }, "halfSize": { "x": 200, "y": 1, "z": 200 } },
+    { "center": { "x": 10, "y": 10, "z": -10 }, "halfSize": { "x": 5, "y": 0.5, "z": 5 } },
+    { "center": { "x": 30, "y": 14, "z": 0 }, "halfSize": { "x": 6, "y": 0.5, "z": 6 } },
+    { "center": { "x": 50, "y": 18, "z": 12 }, "halfSize": { "x": 8, "y": 0.5, "z": 8 } }
+  ]
+}

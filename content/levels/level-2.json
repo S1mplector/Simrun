@@ -1,0 +1,19 @@
+{
+  "id": "level-2",
+  "name": "Sunset Platforms",
+  "spawn": { "x": -5, "y": 8, "z": 0 },
+  "goal": { "position": { "x": 30, "y": 12, "z": 20 }, "radius": 2.0 },
+  "floorHeight": 0,
+  "movement": {
+    "maxSpeed": 12,
+    "acceleration": 35,
+    "gravity": 32,
+    "jumpStrength": 18,
+    "airControl": 0.7
+  },
+  "colliders": [
+    { "center": { "x": 0, "y": 0, "z": 0 }, "halfSize": { "x": 200, "y": 0.5, "z": 200 } },
+    { "center": { "x": 12, "y": 10, "z": 8 }, "halfSize": { "x": 6, "y": 0.5, "z": 6 } },
+    { "center": { "x": 24, "y": 14, "z": 16 }, "halfSize": { "x": 4, "y": 0.5, "z": 4 } }
+  ]
+}

@@ -1,5 +1,7 @@
 using Simrun.Application.Ports;
 using Simrun.Application.UseCases;
+using System;
+using System.IO;
 using Simrun.Infrastructure.Levels;
 using Simrun.Infrastructure.Persistence;
 using Simrun.Infrastructure.Simulation;
@@ -17,7 +19,7 @@ public static class GameBootstrapper
 {
     public static GameServices Build()
     {
-        var levelRepository = new InMemoryLevelRepository(LevelPresets.CreateDefault());
+        var levelRepository = CreateLevelRepository();
         var runStateStore = new InMemoryRunStateStore();
         var physicsEngine = new NaivePhysicsEngine();
         var timeProvider = new SystemTimeProvider();
@@ -26,5 +28,14 @@ public static class GameBootstrapper
         var tickRun = new TickRunHandler(levelRepository, runStateStore, physicsEngine, timeProvider);
 
         return new GameServices(levelRepository, runStateStore, startRun, tickRun);
+    }
+
+    private static ILevelRepository CreateLevelRepository()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var levelsPath = Path.Combine(baseDir, "content", "levels");
+        var fallback = LevelPresets.CreateDefault();
+
+        return new FileSystemLevelRepository(levelsPath, fallback);
     }
 }

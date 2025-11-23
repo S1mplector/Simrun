@@ -1,8 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Simrun.Application\Simrun.Application.csproj" />
-    <ProjectReference Include="..\Simrun.Infrastructure\Simrun.Infrastructure.csproj" />
+    <ProjectReference Include="..\\Simrun.Engine\\Simrun.Engine.csproj" />
+    <ProjectReference Include="..\\Simrun.Application\\Simrun.Application.csproj" />
+    <ProjectReference Include="..\\Simrun.Infrastructure\\Simrun.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -11,5 +12,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\\..\\content\\levels\\**\\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>content\\levels\\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
 
 </Project>

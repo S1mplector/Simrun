@@ -1,0 +1,18 @@
+{
+  "id": "level-1",
+  "name": "Crystal Runway",
+  "spawn": { "x": 0, "y": 2, "z": 0 },
+  "goal": { "position": { "x": 45, "y": 2, "z": 0 }, "radius": 1.5 },
+  "floorHeight": 0,
+  "movement": {
+    "maxSpeed": 12,
+    "acceleration": 35,
+    "gravity": 32,
+    "jumpStrength": 15,
+    "airControl": 0.5
+  },
+  "colliders": [
+    { "center": { "x": 0, "y": -1, "z": 0 }, "halfSize": { "x": 200, "y": 1, "z": 200 } },
+    { "center": { "x": 22, "y": 1, "z": 0 }, "halfSize": { "x": 1, "y": 1, "z": 3 } }
+  ]
+}

@@ -11,7 +11,8 @@ public sealed class LevelDefinition
         Vector3 goalPosition,
         float goalRadius,
         float floorHeight,
-        MovementSettings movement)
+        MovementSettings movement,
+        IEnumerable<CollisionBox>? colliders = null)
     {
         Id = id;
         Name = name;
@@ -20,6 +21,7 @@ public sealed class LevelDefinition
         GoalRadius = goalRadius;
         FloorHeight = floorHeight;
         Movement = movement;
+        Colliders = colliders?.ToArray() ?? Array.Empty<CollisionBox>();
     }
 
     public string Id { get; }
@@ -29,6 +31,7 @@ public sealed class LevelDefinition
     public float GoalRadius { get; }
     public float FloorHeight { get; }
     public MovementSettings Movement { get; }
+    public IReadOnlyList<CollisionBox> Colliders { get; }
 
     public bool IsGoalReached(Vector3 position)
     {
