@@ -5,7 +5,7 @@ namespace Simrun.Presentation.Input;
 
 /// <summary>
 /// Minimal console-based input mapper. Uses toggle-style controls because the console API lacks key-up events.
-/// W/S set forward/backward, A/D set strafe, Shift toggles sprint, Space triggers jump on the current frame.
+/// W/S set forward/backward, A/D set strafe, F toggles sprint, C toggles mouse capture, Space triggers jump on the current frame.
 /// Press R to reset movement axes, Q/Esc to quit.
 /// </summary>
 internal sealed class InputController
@@ -15,6 +15,7 @@ internal sealed class InputController
     private bool _left;
     private bool _right;
     private bool _sprint;
+    public bool CaptureMouse { get; private set; }
 
     public PlayerInput Poll()
     {
@@ -43,6 +44,10 @@ internal sealed class InputController
                     break;
                 case ConsoleKey.F:
                     _sprint = !_sprint;
+                    break;
+                case ConsoleKey.C:
+                    CaptureMouse = !CaptureMouse;
+                    Console.WriteLine($"Mouse capture {(CaptureMouse ? "ON" : "OFF")}");
                     break;
                 case ConsoleKey.Spacebar:
                     jump = true;

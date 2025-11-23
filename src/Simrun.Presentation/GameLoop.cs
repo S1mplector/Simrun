@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
-using Simrun.Application.Models;
 using Simrun.Engine.Rendering;
 using Simrun.Presentation.Cameras;
 using Simrun.Presentation.Input;
@@ -17,6 +16,7 @@ internal sealed class GameLoop
     private readonly CameraRig _cameraRig = new();
     private readonly Camera _camera = new();
     private readonly InputController _input = new();
+    private readonly MouseLook _mouseLook = new();
 
     public GameLoop(GameServices services, IRenderBackend renderer, RenderSurface surface)
     {
@@ -34,7 +34,7 @@ internal sealed class GameLoop
         var last = sw.Elapsed;
         var printTimer = 0f;
 
-        Console.WriteLine("Controls: W/A/S/D move, Space jump, F toggle sprint, R reset movement, Q/Esc quit.");
+        Console.WriteLine("Controls: W/A/S/D move, Space jump, F toggle sprint, C toggle mouse capture, R reset movement, Q/Esc quit.");
 
         while (true)
         {
@@ -49,9 +49,10 @@ internal sealed class GameLoop
             }
 
             var input = _input.Poll();
+            var look = _mouseLook.Poll(_input.CaptureMouse);
             run = _services.TickRun.Tick(input, deltaSeconds);
 
-            _cameraRig.Update(_camera, run.Player.Position, run.Player.Velocity);
+            _cameraRig.Update(_camera, run.Player.Position, run.Player.Velocity, look, deltaSeconds);
             _renderer.Render(_scene, _camera);
 
             printTimer += deltaSeconds;

@@ -8,6 +8,10 @@ namespace Simrun.Infrastructure.Simulation;
 
 public sealed class NaivePhysicsEngine : IPhysicsEngine
 {
+    private const float CapsuleRadius = 0.5f;
+    private const float CapsuleHalfHeight = 0.9f;
+    private const float GroundSnapTolerance = 0.05f;
+
     public PlayerState Step(LevelDefinition level, PlayerState player, PlayerInput input, float deltaSeconds)
     {
         var movement = level.Movement;
@@ -39,7 +43,7 @@ public sealed class NaivePhysicsEngine : IPhysicsEngine
         }
 
         var nextPosition = player.Position.Add(velocity.Scale(deltaSeconds));
-        var grounded = nextPosition.Y <= level.FloorHeight;
+        var grounded = nextPosition.Y <= level.FloorHeight + GroundSnapTolerance;
 
         if (grounded)
         {
@@ -62,25 +66,33 @@ public sealed class NaivePhysicsEngine : IPhysicsEngine
         bool grounded)
     {
         var position = candidatePosition;
+        var playerMin = new Vector3(position.X - CapsuleRadius, position.Y - CapsuleHalfHeight, position.Z - CapsuleRadius);
+        var playerMax = new Vector3(position.X + CapsuleRadius, position.Y + CapsuleHalfHeight, position.Z + CapsuleRadius);
+
         foreach (var collider in level.Colliders)
         {
-            if (!collider.Contains(position))
+            var min = collider.Min;
+            var max = collider.Max;
+
+            var expandedMin = new Vector3(min.X - CapsuleRadius, min.Y - CapsuleHalfHeight, min.Z - CapsuleRadius);
+            var expandedMax = new Vector3(max.X + CapsuleRadius, max.Y + CapsuleHalfHeight, max.Z + CapsuleRadius);
+
+            if (!AabbOverlap(playerMin, playerMax, expandedMin, expandedMax))
             {
                 continue;
             }
 
-            var min = collider.Min;
-            var max = collider.Max;
-
-            var pushX = MathF.Min(max.X - position.X, position.X - min.X);
-            var pushY = MathF.Min(max.Y - position.Y, position.Y - min.Y);
-            var pushZ = MathF.Min(max.Z - position.Z, position.Z - min.Z);
+            var pushX = MathF.Min(expandedMax.X - playerMin.X, playerMax.X - expandedMin.X);
+            var pushY = MathF.Min(expandedMax.Y - playerMin.Y, playerMax.Y - expandedMin.Y);
+            var pushZ = MathF.Min(expandedMax.Z - playerMin.Z, playerMax.Z - expandedMin.Z);
 
             if (pushX <= pushY && pushX <= pushZ)
             {
                 var sign = (position.X > collider.Center.X) ? 1f : -1f;
                 position = new Vector3(position.X + (pushX * sign), position.Y, position.Z);
                 velocity = new Vector3(0f, velocity.Y, velocity.Z);
+                playerMin = new Vector3(position.X - CapsuleRadius, position.Y - CapsuleHalfHeight, position.Z - CapsuleRadius);
+                playerMax = new Vector3(position.X + CapsuleRadius, position.Y + CapsuleHalfHeight, position.Z + CapsuleRadius);
             }
             else if (pushY <= pushX && pushY <= pushZ)
             {
@@ -91,15 +103,26 @@ public sealed class NaivePhysicsEngine : IPhysicsEngine
                 {
                     grounded = true;
                 }
+                playerMin = new Vector3(position.X - CapsuleRadius, position.Y - CapsuleHalfHeight, position.Z - CapsuleRadius);
+                playerMax = new Vector3(position.X + CapsuleRadius, position.Y + CapsuleHalfHeight, position.Z + CapsuleRadius);
             }
             else
             {
                 var sign = (position.Z > collider.Center.Z) ? 1f : -1f;
                 position = new Vector3(position.X, position.Y, position.Z + (pushZ * sign));
                 velocity = new Vector3(velocity.X, velocity.Y, 0f);
+                playerMin = new Vector3(position.X - CapsuleRadius, position.Y - CapsuleHalfHeight, position.Z - CapsuleRadius);
+                playerMax = new Vector3(position.X + CapsuleRadius, position.Y + CapsuleHalfHeight, position.Z + CapsuleRadius);
             }
         }
 
         return (position, velocity, grounded);
+    }
+
+    private static bool AabbOverlap(Vector3 minA, Vector3 maxA, Vector3 minB, Vector3 maxB)
+    {
+        return minA.X <= maxB.X && maxA.X >= minB.X &&
+               minA.Y <= maxB.Y && maxA.Y >= minB.Y &&
+               minA.Z <= maxB.Z && maxA.Z >= minB.Z;
     }
 }
