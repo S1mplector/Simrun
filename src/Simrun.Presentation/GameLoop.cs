@@ -131,6 +131,7 @@ internal sealed class GameLoop
         }
 
         AddPathHint(level);
+        AddScenicProps(level);
 
         foreach (var collider in level.Colliders)
         {
@@ -167,6 +168,50 @@ internal sealed class GameLoop
             Scale = new Vector3(collider.HalfSize.X * 2f, collider.HalfSize.Y * 2f, collider.HalfSize.Z * 2f)
         };
         _scene.Add(new Renderable(mesh, mat, transform));
+    }
+
+    private void AddScenicProps(LevelDefinition level)
+    {
+        var crateMesh = Mesh.CreateCube(1f);
+        var crateMat = new Material { Albedo = new Vector3(0.6f, 0.35f, 0.2f), Roughness = 0.4f };
+
+        var rampMesh = Mesh.CreateCube(1f);
+        var rampMat = new Material { Albedo = new Vector3(0.3f, 0.4f, 0.7f), Roughness = 0.2f };
+
+        var ground = Mesh.CreateQuad(1f);
+        var groundMat = new Material { Albedo = new Vector3(0.15f, 0.2f, 0.22f), Roughness = 0.8f };
+        var groundTransform = new Transform
+        {
+            Position = new Vector3(0f, level.FloorHeight - 0.5f, 0f),
+            Scale = new Vector3(400f, 1f, 400f)
+        };
+        _scene.Add(new Renderable(ground, groundMat, groundTransform));
+
+        // Crates near spawn
+        _scene.Add(new Renderable(crateMesh, crateMat, new Transform { Position = level.SpawnPoint.Add(new Simrun.Domain.ValueObjects.Vector3(2f, 0.5f, 2f)).ToEngine() }));
+        _scene.Add(new Renderable(crateMesh, crateMat, new Transform { Position = level.SpawnPoint.Add(new Simrun.Domain.ValueObjects.Vector3(-3f, 0.5f, -1f)).ToEngine(), Scale = new Vector3(1.5f, 1.5f, 1.5f) }));
+
+        // A ramp up to a platform mid-way
+        var midPoint = level.SpawnPoint.Add(new Simrun.Domain.ValueObjects.Vector3(10f, 2f, 0f));
+        var ramp = new Transform
+        {
+            Position = midPoint.ToEngine(),
+            Scale = new Vector3(8f, 1f, 3f),
+            Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.35f)
+        };
+        _scene.Add(new Renderable(rampMesh, rampMat, ramp));
+
+        var midPlatform = new Transform
+        {
+            Position = level.SpawnPoint.Add(new Simrun.Domain.ValueObjects.Vector3(16f, 3f, 0f)).ToEngine(),
+            Scale = new Vector3(6f, 0.8f, 6f)
+        };
+        _scene.Add(new Renderable(crateMesh, new Material { Albedo = new Vector3(0.2f, 0.6f, 0.5f), Roughness = 0.3f }, midPlatform));
+
+        // Decorative pillars near goal
+        var pillarMat = new Material { Albedo = new Vector3(0.7f, 0.7f, 0.75f), Roughness = 0.5f };
+        _scene.Add(new Renderable(crateMesh, pillarMat, new Transform { Position = level.GoalPosition.Add(new Simrun.Domain.ValueObjects.Vector3(3f, 2f, 3f)).ToEngine(), Scale = new Vector3(1.2f, 4f, 1.2f) }));
+        _scene.Add(new Renderable(crateMesh, pillarMat, new Transform { Position = level.GoalPosition.Add(new Simrun.Domain.ValueObjects.Vector3(-3f, 2f, -2f)).ToEngine(), Scale = new Vector3(1.2f, 5f, 1.2f) }));
     }
 
     private void AddPathHint(LevelDefinition level)

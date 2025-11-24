@@ -23,7 +23,8 @@ public static class LevelPresets
                 colliders: new[]
                 {
                     new CollisionBox(new Vector3(0f, -1f, 0f), new Vector3(200f, 1f, 200f)), // floor
-                    new CollisionBox(new Vector3(22f, 1f, 0f), new Vector3(1f, 1f, 3f)),     // small pillar
+                    new CollisionBox(new Vector3(15f, 2f, 0f), new Vector3(4f, 2f, 4f)),     // mid platform
+                    new CollisionBox(new Vector3(25f, 3f, 0f), new Vector3(4f, 2f, 4f)),     // mid platform 2
                 }),
             new LevelDefinition(
                 id: "level-2",

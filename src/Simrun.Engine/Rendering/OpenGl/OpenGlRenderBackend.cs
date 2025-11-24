@@ -12,8 +12,8 @@ public sealed class OpenGlRenderBackend : IRenderBackend
     private bool _ready;
     private uint _program;
     private int _uModel;
+    private int _uMvp;
     private int _uColor;
-    private int _uViewProj;
     private int _uLightDir;
     private int _uCameraPos;
     private int _uRoughness;
@@ -64,17 +64,8 @@ public sealed class OpenGlRenderBackend : IRenderBackend
         var aspect = (float)_surface.Width / _surface.Height;
         var view = camera.ViewMatrix;
         var projection = camera.ProjectionMatrix(aspect);
-        var viewProj = projection * view;
 
         Span<float> matrixBuffer = stackalloc float[16];
-        WriteMatrix(viewProj, matrixBuffer);
-        unsafe
-        {
-            fixed (float* ptr = matrixBuffer)
-            {
-                GlNative.UniformMatrix4(_uViewProj, ptr);
-            }
-        }
         GlNative.Uniform3(_uLightDir, -0.5f, -1.0f, -0.3f);
         GlNative.Uniform3(_uCameraPos, camera.Transform.Position.X, camera.Transform.Position.Y, camera.Transform.Position.Z);
         GlNative.Uniform3(_uFogColor, 0.12f, 0.16f, 0.2f);
@@ -91,13 +82,23 @@ public sealed class OpenGlRenderBackend : IRenderBackend
             GlNative.BindVertexArray(buffers.Vao);
 
             var world = renderable.Transform.ToMatrix();
+            var mvp = projection * view * world;
             WriteMatrix(world, matrixBuffer);
 
             unsafe
             {
                 fixed (float* ptr = matrixBuffer)
                 {
-                    GlNative.UniformMatrix4(_uModel, ptr);
+                    GlNative.UniformMatrix4(_uModel, ptr, transpose: true);
+                }
+            }
+
+            WriteMatrix(mvp, matrixBuffer);
+            unsafe
+            {
+                fixed (float* ptr = matrixBuffer)
+                {
+                    GlNative.UniformMatrix4(_uMvp, ptr, transpose: true);
                 }
             }
 
@@ -123,7 +124,7 @@ public sealed class OpenGlRenderBackend : IRenderBackend
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
 uniform mat4 uModel;
-uniform mat4 uViewProj;
+uniform mat4 uMvp;
 out vec3 vNormal;
 out vec3 vWorldPos;
 void main()
@@ -131,7 +132,7 @@ void main()
     vec4 world = uModel * vec4(aPos, 1.0);
     vWorldPos = world.xyz;
     vNormal = mat3(uModel) * aNormal;
-    gl_Position = uViewProj * world;
+    gl_Position = uMvp * vec4(aPos, 1.0);
 }";
 
         var fragmentShaderSource = @"#version 330 core
@@ -184,8 +185,8 @@ void main()
         GlNative.DeleteShader(frag);
 
         _uModel = GlNative.GetUniformLocation(_program, "uModel");
+        _uMvp = GlNative.GetUniformLocation(_program, "uMvp");
         _uColor = GlNative.GetUniformLocation(_program, "uColor");
-        _uViewProj = GlNative.GetUniformLocation(_program, "uViewProj");
         _uLightDir = GlNative.GetUniformLocation(_program, "uLightDir");
         _uCameraPos = GlNative.GetUniformLocation(_program, "uCameraPos");
         _uRoughness = GlNative.GetUniformLocation(_program, "uRoughness");
