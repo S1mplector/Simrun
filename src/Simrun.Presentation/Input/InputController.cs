@@ -16,6 +16,7 @@ internal sealed class InputController
     private bool _right;
     private bool _sprint;
     public bool CaptureMouse { get; private set; }
+    public bool DebugDraw { get; private set; }
 
     public PlayerInput Poll()
     {
@@ -54,6 +55,10 @@ internal sealed class InputController
                     break;
                 case ConsoleKey.R:
                     _forward = _backward = _left = _right = false;
+                    break;
+                case ConsoleKey.G:
+                    DebugDraw = !DebugDraw;
+                    Console.WriteLine($"Debug draw {(DebugDraw ? "ON" : "OFF")}");
                     break;
                 case ConsoleKey.Q:
                 case ConsoleKey.Escape:

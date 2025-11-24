@@ -56,7 +56,19 @@ public sealed class NaivePhysicsEngine : IPhysicsEngine
         for (var i = 0; i < steps; i++)
         {
             var previous = position;
-            var segmentNext = position.Add(velocity.Scale(stepDt));
+            var displacement = velocity.Scale(stepDt);
+
+            var sweep = SweepCapsule(level, position, displacement);
+            var segmentNext = sweep.Position;
+            if (sweep.Hit)
+            {
+                velocity = SlideAlongNormal(velocity, sweep.Normal);
+                if (sweep.Normal.Y > 0.2f)
+                {
+                    grounded = true;
+                }
+            }
+
             var groundedSegment = segmentNext.Y <= level.FloorHeight + GroundSnapTolerance;
 
             if (groundedSegment)
@@ -134,6 +146,119 @@ public sealed class NaivePhysicsEngine : IPhysicsEngine
         }
 
         return (position, velocity, grounded);
+    }
+
+    private static (bool Hit, Vector3 Position, Vector3 Normal) SweepCapsule(LevelDefinition level, Vector3 start, Vector3 displacement)
+    {
+        var bestT = float.MaxValue;
+        Vector3 bestNormal = Vector3.Zero;
+
+        var expandedColliders = level.Colliders;
+
+        foreach (var collider in expandedColliders)
+        {
+            var expandedMin = new Vector3(collider.Min.X - CapsuleRadius, collider.Min.Y - CapsuleHalfHeight, collider.Min.Z - CapsuleRadius);
+            var expandedMax = new Vector3(collider.Max.X + CapsuleRadius, collider.Max.Y + CapsuleHalfHeight, collider.Max.Z + CapsuleRadius);
+
+            if (RayAabb(start, displacement, expandedMin, expandedMax, out var tHit, out var normal))
+            {
+                if (tHit < bestT)
+                {
+                    bestT = tHit;
+                    bestNormal = normal;
+                }
+            }
+        }
+
+        if (bestT <= 1f)
+        {
+            var pos = start.Add(displacement.Scale(bestT));
+            return (true, pos, bestNormal);
+        }
+
+        return (false, start.Add(displacement), Vector3.Zero);
+    }
+
+    private static bool RayAabb(Vector3 origin, Vector3 dir, Vector3 min, Vector3 max, out float tHit, out Vector3 normal)
+    {
+        tHit = 0f;
+        normal = Vector3.Zero;
+
+        var tMin = (min.X - origin.X) / (dir.X == 0 ? float.Epsilon : dir.X);
+        var tMax = (max.X - origin.X) / (dir.X == 0 ? float.Epsilon : dir.X);
+        var nx = dir.X >= 0 ? -1f : 1f;
+        if (tMin > tMax)
+        {
+            (tMin, tMax) = (tMax, tMin);
+            nx = -nx;
+        }
+
+        var tyMin = (min.Y - origin.Y) / (dir.Y == 0 ? float.Epsilon : dir.Y);
+        var tyMax = (max.Y - origin.Y) / (dir.Y == 0 ? float.Epsilon : dir.Y);
+        var ny = dir.Y >= 0 ? -1f : 1f;
+        if (tyMin > tyMax)
+        {
+            (tyMin, tyMax) = (tyMax, tyMin);
+            ny = -ny;
+        }
+
+        if ((tMin > tyMax) || (tyMin > tMax))
+        {
+            return false;
+        }
+
+        if (tyMin > tMin)
+        {
+            tMin = tyMin;
+            nx = 0f;
+        }
+        if (tyMax < tMax)
+        {
+            tMax = tyMax;
+        }
+
+        var tzMin = (min.Z - origin.Z) / (dir.Z == 0 ? float.Epsilon : dir.Z);
+        var tzMax = (max.Z - origin.Z) / (dir.Z == 0 ? float.Epsilon : dir.Z);
+        var nz = dir.Z >= 0 ? -1f : 1f;
+        if (tzMin > tzMax)
+        {
+            (tzMin, tzMax) = (tzMax, tzMin);
+            nz = -nz;
+        }
+
+        if ((tMin > tzMax) || (tzMin > tMax))
+        {
+            return false;
+        }
+
+        if (tzMin > tMin)
+        {
+            tMin = tzMin;
+            nx = 0f;
+            ny = 0f;
+        }
+        if (tzMax < tMax)
+        {
+            tMax = tzMax;
+        }
+
+        tHit = tMin;
+        if (tHit < 0f || tHit > 1f)
+        {
+            return false;
+        }
+
+        if (MathF.Abs(nx) > 0f) normal = new Vector3(nx, 0f, 0f);
+        else if (MathF.Abs(ny) > 0f) normal = new Vector3(0f, ny, 0f);
+        else normal = new Vector3(0f, 0f, nz);
+
+        return true;
+    }
+
+    private static Vector3 SlideAlongNormal(Vector3 velocity, Vector3 normal)
+    {
+        var dot = (velocity.X * normal.X) + (velocity.Y * normal.Y) + (velocity.Z * normal.Z);
+        return velocity.Add(normal.Scale(-dot));
     }
 
     private static bool AabbOverlap(Vector3 minA, Vector3 maxA, Vector3 minB, Vector3 maxB)

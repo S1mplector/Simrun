@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using System.Threading;
@@ -20,6 +21,10 @@ internal sealed class GameLoop
     private readonly Camera _camera = new();
     private readonly InputController _input = new();
     private readonly MouseLook _mouseLook = new();
+    private readonly List<Renderable> _debugRenderables = new();
+    private Transform? _playerCapsuleTransform;
+    private const float CapsuleRadius = 0.5f;
+    private const float CapsuleHalfHeight = 0.9f;
 
     public GameLoop(GameServices services, IRenderBackend renderer, RenderSurface surface)
     {
@@ -38,7 +43,7 @@ internal sealed class GameLoop
         var last = sw.Elapsed;
         var printTimer = 0f;
 
-        Console.WriteLine("Controls: W/A/S/D move, Space jump, F toggle sprint, C toggle mouse capture, R reset movement, Q/Esc quit.");
+        Console.WriteLine("Controls: W/A/S/D move, Space jump, F toggle sprint, C toggle mouse capture, G toggle debug draw, R reset movement, Q/Esc quit.");
 
         while (true)
         {
@@ -57,6 +62,8 @@ internal sealed class GameLoop
             run = _services.TickRun.Tick(input, deltaSeconds);
 
             _cameraRig.Update(_camera, run.Player.Position, run.Player.Velocity, look, deltaSeconds);
+            UpdateDebugTransforms(run);
+            _scene.ShowDebug = _input.DebugDraw;
             _renderer.Render(_scene, _camera);
 
             printTimer += deltaSeconds;
@@ -109,5 +116,37 @@ internal sealed class GameLoop
             Position = level.GoalPosition.ToEngine()
         };
         _scene.Add(new Renderable(goal, goalMat, goalTransform));
+
+        foreach (var collider in level.Colliders)
+        {
+            var colliderMesh = Mesh.CreateCube(1f);
+            var colliderMat = new Material { Albedo = new Vector3(0.8f, 0.1f, 0.8f) };
+            var colliderTransform = new Transform
+            {
+                Position = collider.Center.ToEngine(),
+                Scale = new Vector3(collider.HalfSize.X * 2f, collider.HalfSize.Y * 2f, collider.HalfSize.Z * 2f)
+            };
+            var renderable = new Renderable(colliderMesh, colliderMat, colliderTransform, isDebug: true);
+            _scene.Add(renderable);
+            _debugRenderables.Add(renderable);
+        }
+
+        var capsuleMesh = Mesh.CreateCube(1f);
+        var capsuleMat = new Material { Albedo = new Vector3(0.2f, 0.7f, 1f) };
+        _playerCapsuleTransform = new Transform
+        {
+            Scale = new Vector3(CapsuleRadius * 2f, CapsuleHalfHeight * 2f, CapsuleRadius * 2f)
+        };
+        var capsuleRenderable = new Renderable(capsuleMesh, capsuleMat, _playerCapsuleTransform, isDebug: true);
+        _scene.Add(capsuleRenderable);
+        _debugRenderables.Add(capsuleRenderable);
+    }
+
+    private void UpdateDebugTransforms(RunState run)
+    {
+        if (_playerCapsuleTransform is not null)
+        {
+            _playerCapsuleTransform.Position = run.Player.Position.ToEngine();
+        }
     }
 }

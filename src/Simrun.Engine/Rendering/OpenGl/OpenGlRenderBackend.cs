@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace Simrun.Engine.Rendering.OpenGl;
 
@@ -11,6 +12,8 @@ public sealed class OpenGlRenderBackend : IRenderBackend
     private uint _program;
     private int _uMvp;
     private int _uColor;
+    private int _uViewProj;
+    private int _uLightDir;
     private readonly Dictionary<Mesh, GlMeshBuffers> _meshCache = new();
 
     public void Initialize(RenderSurface surface)
@@ -51,11 +54,26 @@ public sealed class OpenGlRenderBackend : IRenderBackend
         var aspect = (float)_surface.Width / _surface.Height;
         var view = camera.ViewMatrix;
         var projection = camera.ProjectionMatrix(aspect);
+        var viewProj = view * projection;
 
         Span<float> matrixBuffer = stackalloc float[16];
+        WriteMatrix(viewProj, matrixBuffer);
+        unsafe
+        {
+            fixed (float* ptr = matrixBuffer)
+            {
+                GlNative.UniformMatrix4(_uViewProj, ptr);
+            }
+        }
+        GlNative.Uniform3(_uLightDir, -0.5f, -1.0f, -0.3f);
 
         foreach (var renderable in scene.Renderables)
         {
+            if (renderable.IsDebug && !scene.ShowDebug)
+            {
+                continue;
+            }
+
             var buffers = EnsureMeshBuffers(renderable.Mesh);
             GlNative.BindVertexArray(buffers.Vao);
 
@@ -89,18 +107,26 @@ public sealed class OpenGlRenderBackend : IRenderBackend
     {
         var vertexShaderSource = @"#version 330 core
 layout (location = 0) in vec3 aPos;
-uniform mat4 uMvp;
+layout (location = 1) in vec3 aNormal;
+uniform mat4 uModel;
+uniform mat4 uViewProj;
+out vec3 vNormal;
 void main()
 {
-    gl_Position = uMvp * vec4(aPos, 1.0);
+    vNormal = mat3(uModel) * aNormal;
+    gl_Position = uViewProj * uModel * vec4(aPos, 1.0);
 }";
 
         var fragmentShaderSource = @"#version 330 core
+in vec3 vNormal;
 out vec4 FragColor;
 uniform vec3 uColor;
+uniform vec3 uLightDir;
 void main()
 {
-    FragColor = vec4(uColor, 1.0);
+    float NdotL = max(dot(normalize(vNormal), normalize(-uLightDir)), 0.05);
+    vec3 lit = uColor * (0.15 + 0.85 * NdotL);
+    FragColor = vec4(lit, 1.0);
 }";
 
         var vert = CompileShader(GlNative.VERTEX_SHADER, vertexShaderSource);
@@ -119,8 +145,10 @@ void main()
         GlNative.DeleteShader(vert);
         GlNative.DeleteShader(frag);
 
-        _uMvp = GlNative.GetUniformLocation(_program, "uMvp");
+        _uMvp = GlNative.GetUniformLocation(_program, "uModel");
         _uColor = GlNative.GetUniformLocation(_program, "uColor");
+        _uViewProj = GlNative.GetUniformLocation(_program, "uViewProj");
+        _uLightDir = GlNative.GetUniformLocation(_program, "uLightDir");
     }
 
     private static uint CompileShader(uint type, string source)
@@ -150,14 +178,18 @@ void main()
         var vbo = GlNative.GenBuffer();
         GlNative.BindBuffer(GlNative.ARRAY_BUFFER, vbo);
 
-        var flattened = new float[mesh.Vertices.Count * 3];
+        var flattened = new float[mesh.Vertices.Count * 6];
         for (var i = 0; i < mesh.Vertices.Count; i++)
         {
             var v = mesh.Vertices[i];
-            var baseIdx = i * 3;
+            var n = mesh.Normals[i];
+            var baseIdx = i * 6;
             flattened[baseIdx] = v.X;
             flattened[baseIdx + 1] = v.Y;
             flattened[baseIdx + 2] = v.Z;
+            flattened[baseIdx + 3] = n.X;
+            flattened[baseIdx + 4] = n.Y;
+            flattened[baseIdx + 5] = n.Z;
         }
 
         GlNative.BufferData(GlNative.ARRAY_BUFFER, flattened, GlNative.STATIC_DRAW);
@@ -174,7 +206,9 @@ void main()
         GlNative.BufferData(GlNative.ELEMENT_ARRAY_BUFFER, indices, GlNative.STATIC_DRAW);
 
         GlNative.EnableVertexAttribArray(0);
-        GlNative.VertexAttribPointer(0, 3, GlNative.FLOAT, false, 3 * sizeof(float), IntPtr.Zero);
+        GlNative.VertexAttribPointer(0, 3, GlNative.FLOAT, false, 6 * sizeof(float), IntPtr.Zero);
+        GlNative.EnableVertexAttribArray(1);
+        GlNative.VertexAttribPointer(1, 3, GlNative.FLOAT, false, 6 * sizeof(float), new IntPtr(3 * sizeof(float)));
 
         var created = new GlMeshBuffers(vao, vbo, ebo, indices.Length);
         _meshCache.Add(mesh, created);

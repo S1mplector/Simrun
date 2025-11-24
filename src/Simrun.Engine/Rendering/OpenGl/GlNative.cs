@@ -156,7 +156,7 @@ internal static class GlNative
     public static void DeleteShader(uint shader) => _deleteShader?.Invoke(shader);
     public static void UseProgram(uint program) => _useProgram?.Invoke(program);
     public static int GetUniformLocation(uint program, string name) => _getUniformLocation!.Invoke(program, name);
-    public unsafe static void UniformMatrix4(int location, float* value) => _uniformMatrix4fv!.Invoke(location, 1, true, value);
+    public unsafe static void UniformMatrix4(int location, float* value, bool transpose = true) => _uniformMatrix4fv!.Invoke(location, 1, transpose, value);
     public static void Uniform3(int location, float x, float y, float z) => _uniform3f!.Invoke(location, x, y, z);
     public unsafe static uint GenVertexArray()
     {
