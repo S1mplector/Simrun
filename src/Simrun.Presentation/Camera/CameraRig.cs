@@ -43,4 +43,13 @@ internal sealed class CameraRig
         camera.Transform.Position = _currentPosition;
         camera.Transform.Rotation = _currentRotation;
     }
+
+    public void FaceDirection(DomainVector direction)
+    {
+        var flat = new Vector3(direction.X, 0f, direction.Z);
+        if (flat.LengthSquared() > 0.001f)
+        {
+            _yaw = MathF.Atan2(flat.X, flat.Z);
+        }
+    }
 }

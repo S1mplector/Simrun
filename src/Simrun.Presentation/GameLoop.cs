@@ -44,6 +44,8 @@ internal sealed class GameLoop
         var printTimer = 0f;
 
         Console.WriteLine("Controls: W/A/S/D move, Space jump, F toggle sprint, C toggle mouse capture, G toggle debug draw, R reset movement, Q/Esc quit.");
+        Console.WriteLine($"Level: {_services.Levels.FindById(run.LevelId)?.Name ?? run.LevelId}");
+        Console.WriteLine("Follow the yellow cube to finish the level.");
 
         while (true)
         {
@@ -117,6 +119,19 @@ internal sealed class GameLoop
         };
         _scene.Add(new Renderable(goal, goalMat, goalTransform));
 
+        var facing = new Simrun.Domain.ValueObjects.Vector3(
+            level.GoalPosition.X - level.SpawnPoint.X,
+            0f,
+            level.GoalPosition.Z - level.SpawnPoint.Z);
+        _cameraRig.FaceDirection(facing);
+
+        foreach (var collider in level.Colliders)
+        {
+            AddPlatformVisual(collider, new Vector3(0.2f, 0.5f, 0.8f));
+        }
+
+        AddPathHint(level);
+
         foreach (var collider in level.Colliders)
         {
             var colliderMesh = Mesh.CreateCube(1f);
@@ -140,6 +155,38 @@ internal sealed class GameLoop
         var capsuleRenderable = new Renderable(capsuleMesh, capsuleMat, _playerCapsuleTransform, isDebug: true);
         _scene.Add(capsuleRenderable);
         _debugRenderables.Add(capsuleRenderable);
+    }
+
+    private void AddPlatformVisual(Simrun.Domain.Entities.CollisionBox collider, Vector3 color)
+    {
+        var mesh = Mesh.CreateCube(1f);
+        var mat = new Material { Albedo = color };
+        var transform = new Transform
+        {
+            Position = collider.Center.ToEngine(),
+            Scale = new Vector3(collider.HalfSize.X * 2f, collider.HalfSize.Y * 2f, collider.HalfSize.Z * 2f)
+        };
+        _scene.Add(new Renderable(mesh, mat, transform));
+    }
+
+    private void AddPathHint(LevelDefinition level)
+    {
+        var hintMesh = Mesh.CreateCube(1f);
+        var mat = new Material { Albedo = new Vector3(0.9f, 0.4f, 0.1f) };
+        var toGoal = new Simrun.Domain.ValueObjects.Vector3(
+            level.GoalPosition.X - level.SpawnPoint.X,
+            level.GoalPosition.Y - level.SpawnPoint.Y,
+            level.GoalPosition.Z - level.SpawnPoint.Z);
+        var distance = toGoal.Magnitude();
+        var direction = toGoal.Normalize();
+        var mid = level.SpawnPoint.Add(direction.Scale(distance * 0.25f));
+
+        var transform = new Transform
+        {
+            Position = mid.ToEngine(),
+            Scale = new Vector3(2f, 0.5f, 6f)
+        };
+        _scene.Add(new Renderable(hintMesh, mat, transform));
     }
 
     private void UpdateDebugTransforms(RunState run)

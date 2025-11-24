@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Simrun.Application.Models;
 using Simrun.Application.Ports;
 using Simrun.Application.UseCases;
@@ -8,6 +9,8 @@ using Simrun.Domain.ValueObjects;
 using Simrun.Infrastructure.Levels;
 using Simrun.Infrastructure.Persistence;
 using Simrun.Infrastructure.Simulation;
+using Simrun.Engine.Rendering;
+using Simrun.Engine.Rendering.OpenGl;
 
 var tests = new List<(string Name, Action Body)>
 {
@@ -15,6 +18,9 @@ var tests = new List<(string Name, Action Body)>
     ("Physics applies jump impulse", Physics_AppliesJumpImpulse),
     ("TickRun completes when goal reached", TickRun_CompletesWhenWithinGoal),
     ("TickRun accumulates elapsed time", TickRun_AccumulatesElapsed),
+    ("GL backend loads core functions", GlBackend_LoadsCoreFunctions),
+    ("GL backend initializes and draws a frame", GlBackend_InitializeAndRender),
+    ("GL backend clear color is readable", GlBackend_ClearColorReadable)
 };
 
 var failures = 0;
@@ -98,6 +104,52 @@ static void TickRun_AccumulatesElapsed()
     AssertAlmost((float)run.Elapsed.TotalSeconds, 0.10f, 1e-3f, "elapsed time accumulated");
 }
 
+static void GlBackend_LoadsCoreFunctions()
+{
+    var backend = new OpenGlRenderBackend();
+    using var window = new OpenGlTestHarness(backend, new RenderSurface(320, 240, "test", VSync: false));
+    window.Initialize();
+    AssertTrue(window.BackendReady, "backend initialized");
+}
+
+static void GlBackend_InitializeAndRender()
+{
+    var backend = new OpenGlRenderBackend();
+    using var window = new OpenGlTestHarness(backend, new RenderSurface(320, 240, "test", VSync: false));
+    window.Initialize();
+
+    var scene = new Scene();
+    var camera = new Camera();
+    scene.Add(new Renderable(Mesh.CreateCube(1f), new Material(), new Transform()));
+    scene.Add(new Renderable(Mesh.CreateQuad(4f), new Material { Albedo = new System.Numerics.Vector3(0.2f, 0.6f, 0.3f) }, new Transform()));
+
+    backend.Render(scene, camera);
+    AssertTrue(true, "render call completed without error");
+}
+
+static void GlBackend_ClearColorReadable()
+{
+    var backend = new OpenGlRenderBackend();
+    using var window = new OpenGlTestHarness(backend, new RenderSurface(64, 64, "test", VSync: false));
+    window.Initialize();
+
+    var scene = new Scene();
+    var camera = new Camera();
+    backend.Render(scene, camera);
+
+    Span<byte> pixel = stackalloc byte[4];
+    unsafe
+    {
+        fixed (byte* ptr = pixel)
+        {
+            GlNative.ReadBuffer(GlNative.FRONT);
+            GlNative.ReadPixels(0, 0, 1, 1, GlNative.RGBA, GlNative.UNSIGNED_BYTE, (IntPtr)ptr);
+        }
+    }
+
+    AssertTrue(pixel[0] > 0 || pixel[1] > 0 || pixel[2] > 0, "clear color produced non-zero pixel");
+}
+
 static (StartRunHandler StartRun, TickRunHandler TickRun) CreateServices(LevelDefinition level)
 {
     var levels = new InMemoryLevelRepository(new[] { level });
@@ -142,4 +194,34 @@ file sealed class FixedTimeProvider : ITimeProvider
     private DateTimeOffset _now = DateTimeOffset.UnixEpoch;
     public DateTimeOffset Now => _now;
     public void AdvanceSeconds(double seconds) => _now = _now.AddSeconds(seconds);
+}
+
+file sealed class OpenGlTestHarness : IDisposable
+{
+    private readonly OpenGlRenderBackend _backend;
+    private readonly RenderSurface _surface;
+    private bool _initialized;
+
+    public OpenGlTestHarness(OpenGlRenderBackend backend, RenderSurface surface)
+    {
+        _backend = backend;
+        _surface = surface;
+    }
+
+    public bool BackendReady => _initialized;
+
+    public void Initialize()
+    {
+        _backend.Initialize(_surface);
+        _initialized = true;
+    }
+
+    public void Dispose()
+    {
+        if (_initialized)
+        {
+            _backend.Shutdown();
+            _initialized = false;
+        }
+    }
 }

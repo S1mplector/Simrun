@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Simrun.Engine.Rendering.OpenGl;
 
-internal static class GlNative
+public static class GlNative
 {
     public const uint COLOR_BUFFER_BIT = 0x00004000;
     public const uint DEPTH_BUFFER_BIT = 0x00000100;
@@ -20,6 +20,12 @@ internal static class GlNative
     public const uint COMPILE_STATUS = 0x8B81;
     public const uint LINK_STATUS = 0x8B82;
     public const uint UNSIGNED_INT = 0x1405;
+    public const uint RGBA = 0x1908;
+    public const uint UNSIGNED_BYTE = 0x1401;
+    public const uint FRONT = 0x0404;
+    public const uint DEBUG_OUTPUT = 0x92E0;
+    public const uint DEBUG_OUTPUT_SYNCHRONOUS = 0x8242;
+    public const uint NO_ERROR = 0;
 
     private delegate void GlClearColor(float r, float g, float b, float a);
     private delegate void GlClear(uint mask);
@@ -41,6 +47,7 @@ internal static class GlNative
     private delegate void GlUseProgram(uint program);
     private delegate int GlGetUniformLocation(uint program, string name);
     private unsafe delegate void GlUniformMatrix4fv(int location, int count, bool transpose, float* value);
+    private delegate void GlUniform1f(int location, float v0);
     private delegate void GlUniform3f(int location, float v0, float v1, float v2);
     private unsafe delegate void GlGenVertexArrays(int n, uint* arrays);
     private delegate void GlBindVertexArray(uint array);
@@ -50,6 +57,11 @@ internal static class GlNative
     private delegate void GlEnableVertexAttribArray(uint index);
     private delegate void GlVertexAttribPointer(uint index, int size, uint type, bool normalized, int stride, IntPtr pointer);
     private delegate void GlDrawElements(uint mode, int count, uint type, IntPtr indices);
+    private delegate void GlReadPixels(int x, int y, int width, int height, uint format, uint type, IntPtr data);
+    private delegate void GlReadBuffer(uint mode);
+    private delegate uint GlGetError();
+    private delegate void GlDebugMessageCallback(DebugProc callback, IntPtr userParam);
+    private delegate void GlDebugMessageControl(uint source, uint type, uint severity, int count, IntPtr ids, bool enabled);
 
     private static GlClearColor? _clearColor;
     private static GlClear? _clear;
@@ -71,6 +83,7 @@ internal static class GlNative
     private static GlUseProgram? _useProgram;
     private static GlGetUniformLocation? _getUniformLocation;
     private static GlUniformMatrix4fv? _uniformMatrix4fv;
+    private static GlUniform1f? _uniform1f;
     private static GlUniform3f? _uniform3f;
     private static GlGenVertexArrays? _genVertexArrays;
     private static GlBindVertexArray? _bindVertexArray;
@@ -80,6 +93,11 @@ internal static class GlNative
     private static GlEnableVertexAttribArray? _enableVertexAttribArray;
     private static GlVertexAttribPointer? _vertexAttribPointer;
     private static GlDrawElements? _drawElements;
+    private static GlReadPixels? _readPixels;
+    private static GlReadBuffer? _readBuffer;
+    private static GlGetError? _getError;
+    private static GlDebugMessageCallback? _debugCallback;
+    private static GlDebugMessageControl? _debugControl;
 
     public static void Load()
     {
@@ -103,6 +121,7 @@ internal static class GlNative
         _useProgram = LoadFunction<GlUseProgram>("glUseProgram");
         _getUniformLocation = LoadFunction<GlGetUniformLocation>("glGetUniformLocation");
         _uniformMatrix4fv = LoadFunction<GlUniformMatrix4fv>("glUniformMatrix4fv");
+        _uniform1f = LoadFunction<GlUniform1f>("glUniform1f");
         _uniform3f = LoadFunction<GlUniform3f>("glUniform3f");
         _genVertexArrays = LoadFunction<GlGenVertexArrays>("glGenVertexArrays");
         _bindVertexArray = LoadFunction<GlBindVertexArray>("glBindVertexArray");
@@ -112,6 +131,11 @@ internal static class GlNative
         _enableVertexAttribArray = LoadFunction<GlEnableVertexAttribArray>("glEnableVertexAttribArray");
         _vertexAttribPointer = LoadFunction<GlVertexAttribPointer>("glVertexAttribPointer");
         _drawElements = LoadFunction<GlDrawElements>("glDrawElements");
+        _readPixels = LoadFunction<GlReadPixels>("glReadPixels");
+        _readBuffer = LoadFunction<GlReadBuffer>("glReadBuffer");
+        _getError = LoadFunction<GlGetError>("glGetError");
+        _debugCallback = LoadFunction<GlDebugMessageCallback>("glDebugMessageCallback");
+        _debugControl = LoadFunction<GlDebugMessageControl>("glDebugMessageControl");
     }
 
     public static void ClearColor(float r, float g, float b, float a) => _clearColor?.Invoke(r, g, b, a);
@@ -157,6 +181,7 @@ internal static class GlNative
     public static void UseProgram(uint program) => _useProgram?.Invoke(program);
     public static int GetUniformLocation(uint program, string name) => _getUniformLocation!.Invoke(program, name);
     public unsafe static void UniformMatrix4(int location, float* value, bool transpose = true) => _uniformMatrix4fv!.Invoke(location, 1, transpose, value);
+    public static void Uniform1(int location, float v0) => _uniform1f?.Invoke(location, v0);
     public static void Uniform3(int location, float x, float y, float z) => _uniform3f!.Invoke(location, x, y, z);
     public unsafe static uint GenVertexArray()
     {
@@ -190,6 +215,28 @@ internal static class GlNative
     public static void VertexAttribPointer(uint index, int size, uint type, bool normalized, int stride, IntPtr pointer) =>
         _vertexAttribPointer!.Invoke(index, size, type, normalized, stride, pointer);
     public static void DrawElements(int count) => _drawElements!.Invoke(TRIANGLES, count, UNSIGNED_INT, IntPtr.Zero);
+    public static void ReadBuffer(uint mode) => _readBuffer!.Invoke(mode);
+    public static void ReadPixels(int x, int y, int width, int height, uint format, uint type, IntPtr data) =>
+        _readPixels!.Invoke(x, y, width, height, format, type, data);
+    public static uint GetError() => _getError is null ? NO_ERROR : _getError.Invoke();
+    public static void DebugMessageCallback(DebugProc callback, IntPtr user) => _debugCallback?.Invoke(callback, user);
+    public static void DebugMessageControl(uint source, uint type, uint severity, bool enabled) =>
+        _debugControl?.Invoke(source, type, severity, 0, IntPtr.Zero, enabled);
+
+    public static bool HasRequiredCore() =>
+        _clearColor is not null &&
+        _clear is not null &&
+        _viewport is not null &&
+        _enable is not null &&
+        _depthFunc is not null &&
+        _createShader is not null &&
+        _createProgram is not null &&
+        _drawElements is not null &&
+        _bindVertexArray is not null &&
+        _bindBuffer is not null &&
+        _getError is not null;
+
+    public delegate void DebugProc(uint source, uint type, uint id, uint severity, int length, IntPtr message, IntPtr userParam);
 
     private static T? LoadFunction<T>(string name) where T : class
     {
@@ -217,4 +264,13 @@ internal static class Wgl
 
     [DllImport("opengl32.dll", EntryPoint = "wglGetProcAddress", CharSet = CharSet.Ansi)]
     public static extern IntPtr wglGetProcAddress(string name);
+
+    private delegate bool SwapIntervalProc(int interval);
+    private static SwapIntervalProc? _swapInterval;
+
+    public static void SwapInterval(int interval)
+    {
+        _swapInterval ??= Marshal.GetDelegateForFunctionPointer<SwapIntervalProc>(wglGetProcAddress("wglSwapIntervalEXT"));
+        _swapInterval?.Invoke(interval);
+    }
 }

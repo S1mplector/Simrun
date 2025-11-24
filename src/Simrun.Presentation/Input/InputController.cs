@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Simrun.Application.Models;
 
 namespace Simrun.Presentation.Input;
@@ -17,54 +19,53 @@ internal sealed class InputController
     private bool _sprint;
     public bool CaptureMouse { get; private set; }
     public bool DebugDraw { get; private set; }
+    private readonly HashSet<ConsoleKey> _previousPressed = new();
 
     public PlayerInput Poll()
     {
         var jump = false;
 
-        while (Console.KeyAvailable)
+        var pressed = PollKeys();
+
+        bool WasPressed(ConsoleKey key) => _previousPressed.Contains(key);
+        bool IsPressed(ConsoleKey key) => pressed.Contains(key);
+        bool IsToggled(ConsoleKey key) => IsPressed(key) && !WasPressed(key);
+
+        _forward = IsPressed(ConsoleKey.W);
+        _backward = IsPressed(ConsoleKey.S);
+        _left = IsPressed(ConsoleKey.A);
+        _right = IsPressed(ConsoleKey.D);
+        _sprint = IsPressed(ConsoleKey.F) || _sprint; // sticky unless reset with R
+
+        if (IsToggled(ConsoleKey.F)) _sprint = !_sprint;
+        if (IsToggled(ConsoleKey.C))
         {
-            var key = Console.ReadKey(intercept: true).Key;
-            switch (key)
-            {
-                case ConsoleKey.W:
-                    _forward = true;
-                    _backward = false;
-                    break;
-                case ConsoleKey.S:
-                    _backward = true;
-                    _forward = false;
-                    break;
-                case ConsoleKey.A:
-                    _left = true;
-                    _right = false;
-                    break;
-                case ConsoleKey.D:
-                    _right = true;
-                    _left = false;
-                    break;
-                case ConsoleKey.F:
-                    _sprint = !_sprint;
-                    break;
-                case ConsoleKey.C:
-                    CaptureMouse = !CaptureMouse;
-                    Console.WriteLine($"Mouse capture {(CaptureMouse ? "ON" : "OFF")}");
-                    break;
-                case ConsoleKey.Spacebar:
-                    jump = true;
-                    break;
-                case ConsoleKey.R:
-                    _forward = _backward = _left = _right = false;
-                    break;
-                case ConsoleKey.G:
-                    DebugDraw = !DebugDraw;
-                    Console.WriteLine($"Debug draw {(DebugDraw ? "ON" : "OFF")}");
-                    break;
-                case ConsoleKey.Q:
-                case ConsoleKey.Escape:
-                    Environment.Exit(0);
-                    break;
-            }
+            CaptureMouse = !CaptureMouse;
+            Console.WriteLine($"Mouse capture {(CaptureMouse ? "ON" : "OFF")}");
+        }
+        if (IsToggled(ConsoleKey.G))
+        {
+            DebugDraw = !DebugDraw;
+            Console.WriteLine($"Debug draw {(DebugDraw ? "ON" : "OFF")}");
+        }
+        if (IsToggled(ConsoleKey.R))
+        {
+            _forward = _backward = _left = _right = false;
+            _sprint = false;
+        }
+        if (IsToggled(ConsoleKey.Spacebar))
+        {
+            jump = true;
+        }
+        if (IsToggled(ConsoleKey.Q) || IsToggled(ConsoleKey.Escape))
+        {
+            Environment.Exit(0);
+        }
+
+        _previousPressed.Clear();
+        foreach (var key in pressed)
+        {
+            _previousPressed.Add(key);
         }
 
         var forward = (_forward ? 1f : 0f) + (_backward ? -1f : 0f);
@@ -72,4 +73,34 @@ internal sealed class InputController
 
         return new PlayerInput(strafe, forward, jump, _sprint);
     }
+
+    private static HashSet<ConsoleKey> PollKeys()
+    {
+        var keys = new[]
+        {
+            ConsoleKey.W, ConsoleKey.A, ConsoleKey.S, ConsoleKey.D,
+            ConsoleKey.Spacebar, ConsoleKey.F, ConsoleKey.C, ConsoleKey.G,
+            ConsoleKey.R, ConsoleKey.Q, ConsoleKey.Escape
+        };
+
+        var pressed = new HashSet<ConsoleKey>();
+        foreach (var key in keys)
+        {
+            if (IsKeyDown(key))
+            {
+                pressed.Add(key);
+            }
+        }
+        return pressed;
+    }
+
+    private static bool IsKeyDown(ConsoleKey key)
+    {
+        var code = (int)key;
+        var state = GetAsyncKeyState(code);
+        return (state & 0x8000) != 0;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
 }

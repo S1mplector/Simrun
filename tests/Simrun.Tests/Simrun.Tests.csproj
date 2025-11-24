@@ -4,11 +4,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\\..\\src\\Simrun.Domain\\Simrun.Domain.csproj" />
     <ProjectReference Include="..\\..\\src\\Simrun.Application\\Simrun.Application.csproj" />
     <ProjectReference Include="..\\..\\src\\Simrun.Infrastructure\\Simrun.Infrastructure.csproj" />
+    <ProjectReference Include="..\\..\\src\\Simrun.Engine\\Simrun.Engine.csproj" />
   </ItemGroup>
 </Project>
